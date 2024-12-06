@@ -8,17 +8,17 @@ typedef struct
     char *src;
     char *dest;
     specs *specs;
-} video_gen;
+} ascii_video_gen;
 
 /**
- * Creatting a new video generator struct.
+ * Creating a new ascii video generator struct.
  */
-video_gen *viden_gen_new(char *src, char *dest, specs *specs);
+ascii_video_gen *ascii_viden_gen_new(char *src, char *dest, specs *specs);
 
 
 /**
  * Running the generator.
 */
-int video_gen_run(video_gen *gen);
+int ascii_video_gen_run(ascii_video_gen *gen);
 
 #endif
