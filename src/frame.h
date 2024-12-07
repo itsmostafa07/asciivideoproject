@@ -26,6 +26,6 @@ char *frame_to_ascii(frame *frame);
  * Writing the frame that converted into Ascii Art to the path of the
  * destination file.
  */
-int frame_ascii_write_to(frame *frame);
+int frame_ascii_write_to(frame *frame, char* filename);
 
 #endif
