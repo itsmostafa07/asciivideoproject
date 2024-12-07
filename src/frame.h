@@ -2,32 +2,7 @@
 #define _FRAME_H
 
 #include <stdint.h>
-
-typedef struct
-{
-  short rgb[3];
-} pixel;
-
-/**
- * Creating a new pixel.
- */
-
-pixel *pixel_new(short red, short green, short blue);
-
-/**
- * Converting the pixel into gray scale.
- *
- * Formula:
- *   GrayScale = 0.299*R + 0.587*G + 0.114*B
- */
-
-unsigned short pixel_grayscale(pixel px);
-
-/*
- * Converting the pixel to ascii character depends on its intensity.
- */
-
-char pixel_to_ascii(pixel px);
+#include "pixel.h"
 
 typedef struct
 {
@@ -52,4 +27,5 @@ char *frame_to_ascii(frame *frame);
  * destination file.
  */
 int frame_ascii_write_to(frame *frame);
+
 #endif
