@@ -1,7 +1,7 @@
 # Compiler and flags
 CC := gcc
-CFLAGS := -Wall -Werror -std=c11
-LDFLAGS := 
+CFLAGS := -Wall -Werror -std=c11 
+LDFLAGS := -lavcodec -lavformat -lavutil -lswscale -lswresample -lz -lm
 BUILD_DIR := build
 SRC_DIR := src
 
@@ -31,9 +31,9 @@ $(BUILD_DIR):
 clean:
 	rm -rf $(BUILD_DIR) $(TARGET)
 
-
+# Run the program
 run:
 	./build/asciivideo
 
 # Add a "phony" rule to avoid conflicts with files named "all" or "clean"
-.PHONY: all clean
+.PHONY: all clean run
