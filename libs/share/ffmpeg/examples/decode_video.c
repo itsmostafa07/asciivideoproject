@@ -3,20 +3,20 @@
 #include <string.h>
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
-#include <pthread.h>
-#include <omp.h>
+static void pgm_save(unsigned char *buf, int wrap, int xsize, int ysize, char *filename)
+{
+    FILE *f;
+    int i;
 
-// static void pgm_save(unsigned char *buf, int wrap, int xsize, int ysize, char *filename)
-// {
-//     FILE *f;
-//     int i;
-
-//     f = fopen(filename, "wb");
-//     fprintf(f, "P5\n%d %d\n%d\n", xsize, ysize, 255);
-//     for (i = 0; i < ysize; i++)
-//         fwrite(buf + i * wrap, 1, xsize, f);
-//     fclose(f);
-// }
+    f = fopen(filename, "wb");
+    fprintf(f, "P5\n%d %d\n%d\n", xsize, ysize, 255);
+    for (i = 0; i < ysize; i++)
+    {
+        // printf("%i => %i\n ",i, buf + i * wrap);
+        fwrite(buf + i * wrap, 1, xsize, f);
+    }
+    fclose(f);
+}
 
 static void decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, const char *filename)
 {
@@ -42,17 +42,9 @@ static void decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, const
         }
 
         printf("Saving frame %ld\n", dec_ctx->frame_num);
-        snprintf(buf, sizeof(buf), "%s/%ld.pgm", filename, dec_ctx->frame_num);
-        printf("==> line size: %i , res:C %i %i*%i\n", frame->linesize[0], frame->linesize[0] * frame->height, frame->height, frame->width);
+        snprintf(buf, sizeof(buf), "%s-%ld.pgm", filename, dec_ctx->frame_num);
 
-        #pragma omp parallel for 
-        for (int height = 0; height < frame->height; height++)
-        {
-            for (int width = 0; width < frame->linesize[0]; width++)
-            {
-                printf("f#%li px#%i r: %i, g: %i, b: %i \n ", dec_ctx->frame_num, width * height, frame->data[0][width * 3 + height], frame->data[0][width * 3 + height + 1], frame->data[0][width * 3 + height + 2]);
-            }
-        }
+        pgm_save(frame->data[0], frame->linesize[0], frame->width, frame->height, buf);
     }
 }
 
