@@ -1,5 +1,5 @@
-#ifndef _GEN_H
-#define _GEN_H
+#ifndef _PLAYER_H
+#define _PLAYER_H
 
 #include "./specs.h"
 
@@ -12,7 +12,7 @@ typedef struct
 /**
  * Creatting a new video player struct.
  */
-video_player *viden_player_new(char *src, specs *specs);
+video_player *video_player_new(char *src, specs *specs);
 
 /**
  * Running the player.

@@ -1,49 +1,75 @@
-#include "./player.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <ncurses.h>
 
- void print_frame(char *frame_path, int width, int height)
+#include "player.h"
+#include "helpers.h"
+
+static int print_frame(char *filename, WINDOW *frame_pad, int width, int height)
 {
-    FILE *file = fopen(frame_path, "r");
-    if(file == NULL)
+    FILE *file = fopen(filename, "r");
+    if (!file)
     {
-        printf("Could not open file %s \n", frame_path);
-        return;
+        INFO("Error: Could not open file %s\n", filename);
+        return -1;
     }
 
-    char buffer[256];
-    while(fgets(buffer, sizeof(buffer), file) != NULL)
-        printf("%s", buffer);
+    werase(frame_pad);
+
+    char line[width + 1];
+    for (int y = 0; y < height; y++)
+    {
+        if (fgets(line, sizeof(line), file) == NULL)
+            break;
+
+        mvwprintw(frame_pad, y, 0, "%.*s", width, line);
+    }
 
     fclose(file);
+    return 0;
 }
 
-
-video_player *viden_player_new(char *src, specs *specs)
+video_player *video_player_new(char *src, specs *specs)
 {
     video_player *player = malloc(sizeof(video_player));
     player->src = src;
-    player->specs = specs_deserialize(src);
+    player->specs = specs;
     return player;
 }
 
-
 int video_player_run(video_player *player)
+
 {
-    int fps = player->specs->fps;
-    int width = player->specs->width;
-    int height = player->specs->width;
-    char frame_path[256];
+    int delay = 1000000 / player->specs->fps;
 
-    for(int i = 0; i < player->specs->frames_count; i++)
+    int term_rows, term_cols;
+    int width = player->specs->width * 4, height = player->specs->height;
+    getmaxyx(stdscr, term_rows, term_cols); // Get terminal size
+
+    int offset_y = (term_rows - height) / 2;
+    int offset_x = (term_cols - width) / 2;
+
+    WINDOW *frame_pad = newpad(height, width);
+    if (!frame_pad)
     {
-        snprintf(frame_path, sizeof(frame_path), "%s/%d.ascii", player->src, i);
-
-        print_frame(frame_path, width, height);
-
-        usleep(1000000 / fps);
+        ERROR(" Could not create frame pad\n");
+        return -1;
     }
 
+    for (int i = 1; i <= player->specs->frames_count; i++)
+    {
+        char filename[128];
+        snprintf(filename, sizeof(filename), "%s%i.ascii", player->src, i);
+
+        print_frame(filename, frame_pad, width, height);
+
+        prefresh(frame_pad, 0, 0, offset_y, offset_x, offset_y + height - 1, offset_x + width - 1);
+
+        usleep(delay);
+    }
+
+    delwin(frame_pad);
     return 0;
 }
