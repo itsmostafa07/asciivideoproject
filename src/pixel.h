@@ -6,14 +6,16 @@
 
 typedef struct
 {
-    uint16_t rgb[3];
+    uint16_t r;
+    uint16_t g;
+    uint16_t b;
 } pixel;
 
 /**
  * Creating a new pixel.
  */
 
-pixel *pixel_new(uint16_t red, uint16_t green, uint16_t blue);
+pixel pixel_new(uint16_t red, uint16_t green, uint16_t blue);
 
 /**
  * Getting the intensity level of a specific pixel.
