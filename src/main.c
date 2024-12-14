@@ -3,9 +3,13 @@
 #include <string.h>
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
+#include <ncurses.h>
 
 #define __USE_MISC
 #include <unistd.h>
+
+#include "video.h"
+#include "helpers.h"
 
 #define FRAME_DELAY 33333 // Microseconds (1/30 second)
 
@@ -34,26 +38,39 @@ static void ascii_save(unsigned char *buf, int wrap, int xsize, int ysize, char 
     fclose(file);
 }
 
-static void player(const char *prefix)
+static void player(const char *prefix, int width, int height)
 {
+
     for (int i = 1; i <= 450; i++)
     {
-        // chr buf[100];
         char filename[128];
         snprintf(filename, sizeof(filename), "%s-%i.ascii", prefix, i);
+
+        // Open the ASCII file for reading
         FILE *file = fopen(filename, "r");
-        printf("\t\t\t");
+        if (!file)
+        {
+            fprintf(stderr, "Error: Could not open file %s\n", filename);
+            break; // Exit loop on failure
+        }
+
         char ch;
         while ((ch = fgetc(file)) != EOF)
         {
-            printf("%c", ch);
+            printw("%c", ch);
         }
-        usleep(FRAME_DELAY);
-        fflush(stdout);
+
+        fclose(file); // Close the file
+
+        // Pause for the frame delay
+        refresh();           // Refresh the screen to display the frame
+        usleep(FRAME_DELAY); // Delay in microseconds (e.g., 33ms for ~30fps)
+
+        clear(); // Clear the screen for the next frame
     }
 }
 
-static void decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, const char *filename)
+static int decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, const char *filename)
 {
     char buf[1024];
     int ret;
@@ -61,7 +78,7 @@ static void decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, const
     ret = avcodec_send_packet(dec_ctx, pkt);
     if (ret < 0)
     {
-        fprintf(stderr, "Error sending a packet for decoding\n");
+        ERROR("Error sending a packet for decoding\n");
         exit(1);
     }
 
@@ -69,32 +86,27 @@ static void decode(AVCodecContext *dec_ctx, AVFrame *frame, AVPacket *pkt, const
     {
         ret = avcodec_receive_frame(dec_ctx, frame);
         if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF)
-            return;
+            goto done;
         else if (ret < 0)
         {
-            fprintf(stderr, "Error during decoding\n");
-            exit(1);
+            ERROR("Error during decoding\n");
+            return -1;
         }
 
-        printf("Saving frame %ld: %ix%i\n", dec_ctx->frame_num, frame->width, frame->height);
+        INFO("Saving frame %ld: %ix%i\n", dec_ctx->frame_num, frame->width, frame->height);
         snprintf(buf, sizeof(buf), "%s-%ld.ascii", filename, dec_ctx->frame_num);
 
         ascii_save(frame->data[0], frame->linesize[0], frame->width, frame->height, buf);
         // usleep(FRAME_DELAY);
     }
     printf("Decoding is done\n");
+done:
+    return 0;
 }
 
 int main(int argc, char **argv)
 {
     const char *filename, *outfilename;
-    AVFormatContext *fmt_ctx = NULL;
-    const AVCodec *codec;
-    AVCodecContext *codec_ctx = NULL;
-    AVStream *video_stream = NULL;
-    int video_stream_index = -1;
-    AVPacket *pkt = NULL;
-    AVFrame *frame = NULL;
 
     if (argc <= 2)
     {
@@ -104,94 +116,20 @@ int main(int argc, char **argv)
     filename = argv[1];
     outfilename = argv[2];
 
-    // Open the input file
-    if (avformat_open_input(&fmt_ctx, filename, NULL, NULL) < 0)
-    {
-        fprintf(stderr, "Could not open input file\n");
-        exit(1);
-    }
+    video *vid = video_new(filename, outfilename);
 
-    // Find stream information
-    if (avformat_find_stream_info(fmt_ctx, NULL) < 0)
-    {
-        fprintf(stderr, "Could not find stream information\n");
-        exit(1);
-    }
-
-    // Find the video stream
-    for (unsigned int i = 0; i < fmt_ctx->nb_streams; i++)
-    {
-        if (fmt_ctx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO)
-        {
-            video_stream_index = i;
-            video_stream = fmt_ctx->streams[i];
-            break;
-        }
-    }
-    if (video_stream_index == -1)
-    {
-        fprintf(stderr, "Could not find a video stream\n");
-        exit(1);
-    }
-
-    // Find the decoder for the video stream
-    codec = avcodec_find_decoder(video_stream->codecpar->codec_id);
-    if (!codec)
-    {
-        fprintf(stderr, "Codec not found\n");
-        exit(1);
-    }
-
-    // Allocate codec context
-    codec_ctx = avcodec_alloc_context3(codec);
-    if (!codec_ctx)
-    {
-        fprintf(stderr, "Could not allocate codec context\n");
-        exit(1);
-    }
-
-    // Copy codec parameters from the input stream to the codec context
-    if (avcodec_parameters_to_context(codec_ctx, video_stream->codecpar) < 0)
-    {
-        fprintf(stderr, "Could not copy codec parameters to context\n");
-        exit(1);
-    }
-
-    // Open codec
-    if (avcodec_open2(codec_ctx, codec, NULL) < 0)
-    {
-        fprintf(stderr, "Could not open codec\n");
-        exit(1);
-    }
-
-    // Allocate frame and packet
-    frame = av_frame_alloc();
-    pkt = av_packet_alloc();
-    if (!frame || !pkt)
-    {
-        fprintf(stderr, "Could not allocate frame or packet\n");
-        exit(1);
-    }
-
-    // Read frames from the file
-    while (av_read_frame(fmt_ctx, pkt) >= 0)
-    {
-        if (pkt->stream_index == video_stream_index)
-        {
-            decode(codec_ctx, frame, pkt, outfilename);
-        }
-        av_packet_unref(pkt);
-    }
-
+    video_decode_frames(vid, decode);
     // Flush the decoder
-    decode(codec_ctx, frame, NULL, outfilename);
+    // decode(codec_ctx, frame, NULL, outfilename);
 
-    player(outfilename);
+    initscr();
+    noecho();    // Don't echo input characters
+    curs_set(0); // Hide the cursor
+    INFO("w=%i, h=%i", vid->codec_ctx->width, vid->codec_ctx->height);
+    player(outfilename, vid->codec_ctx->width, vid->codec_ctx->height);
+    endwin();
     // Clean up
-    av_frame_free(&frame);
-    av_packet_free(&pkt);
-    avcodec_free_context(&codec_ctx);
-    avformat_close_input(&fmt_ctx);
+    video_clean_up(vid);
 
     return 0;
 }
