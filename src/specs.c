@@ -7,7 +7,7 @@
 
 /*The specs_new function will allocate memory
 for a new specs structure and initialize it with the provided values*/
-specs *specs_new(unsigned int frames_count, unsigned short fps, float duration, uint32_t width, uint32_t height)
+specs *specs_new(unsigned int frames_count, double fps, double duration, uint32_t width, uint32_t height)
 {
     // dynamic memory allocation for new_specs structre
     specs *new_specs = (specs *)malloc(sizeof(specs)); // pointer to structure
@@ -35,7 +35,7 @@ char *specs_serialize(specs *specifications)
         return NULL;
 
     // Calculate the required buffer size dynamically
-    int required_size = snprintf(NULL, 0, "%u,%hu,%.1f,%u,%u", /*The snprintf() function is used to redirect the output of printf() function onto a buffer.*/
+    int required_size = snprintf(NULL, 0, "%u,%.1f,%.1f,%u,%u", /*The snprintf() function is used to redirect the output of printf() function onto a buffer.*/
                                  specifications->frames_count,
                                  specifications->fps,
                                  specifications->duration,
@@ -58,7 +58,7 @@ char *specs_serialize(specs *specifications)
         return NULL;
     }
     // write the formatted string
-    snprintf(buffer, required_size + 1, "%u,%hu,%.1f,%u,%u", // Write formatted output to sized buffer
+    snprintf(buffer, required_size + 1, "%u,%.1f,%.1f,%u,%u", // Write formatted output to sized buffer
              specifications->frames_count,
              specifications->fps,
              specifications->duration,
@@ -85,7 +85,7 @@ specs *specs_deserialize(char *str)
     }
 
     // using sscanf to read values from the comma-separated string and store them in the corresponding fields of the specs structure
-    sscanf(str, "%u,%hu,%f,%u,%u",
+    sscanf(str, "%u,%.1f,%f,%u,%u",
            &new_specs->frames_count,
            &new_specs->fps,
            &new_specs->duration,

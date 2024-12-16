@@ -28,12 +28,14 @@ int main(int argc, char **argv)
     out = argv[2];
 
     video *vid = video_new(src, out);
-    AVRational framerate = vid->codec_ctx->framerate;
+    AVRational framerate =
+        av_guess_frame_rate(vid->fmt_ctx, vid->video_stream, vid->frame);
+    
+    double fps = framerate.num / framerate.den;
+    double duration = vid->fmt_ctx->duration / (double)AV_TIME_BASE;
 
-    float fps = framerate.num / framerate.den;
-    float duration = vid->fmt_ctx->duration / (float)AV_TIME_BASE;
-    int frames_count = (int)fps * (int)duration;
-    specs *specs = specs_new((int)fps * (int)duration, fps, duration, vid->video_stream->codecpar->width, vid->video_stream->codecpar->height);
+    int frames_count = fps * duration;
+    specs *specs = specs_new(frames_count, fps, duration, vid->video_stream->codecpar->width, vid->video_stream->codecpar->height);
 
     INFO("Creating specs file, content={%s}", specs_serialize(specs));
 
