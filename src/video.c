@@ -1,5 +1,8 @@
 #include <string.h>
-#include "./video.h"
+#include <unistd.h>
+#include <sys/wait.h>
+
+#include "video.h"
 #include "helpers.h"
 
 /**
@@ -169,6 +172,77 @@ int video_decode_frames(video *vid, int (*handler)(AVCodecContext *codec_ctx, AV
 
 fail:
     return -1;
+}
+
+/**
+ * Extract audio from the video and save it to the output file
+ */
+int video_extract_audio(video *vid, const char *output_file)
+{
+
+    // Validate input parameters
+    if (!vid || !vid->src || !output_file)
+    {
+        ERROR("Invalid input parameters");
+        return -1;
+    }
+
+        // Fork a child process
+    pid_t pid = fork();
+
+    if (pid == -1)
+    {
+        // Fork failed
+        ERROR("Failed to fork process");
+        return -1;
+    }
+    else if (pid == 0)
+    {
+        // Child process
+        // Execute ffmpeg to extract audio
+        // Use execl to replace the current process with ffmpeg
+        execl("/usr/bin/ffmpeg",
+              "ffmpeg",               // argv[0]
+              "-i", vid->src,         // input file
+              "-vn",                  // no video
+              "-acodec", "pcm_s16le", // PCM 16-bit little-endian
+              "-ar", "44100",         // 44.1kHz sample rate
+              "-ac", "2",             // 2 audio channels
+              output_file,            // output file
+              NULL);
+
+        // If execl fails, exit the child process
+        ERROR("Failed to execute ffmpeg");
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        // Parent process
+        int status;
+        // Wait for the child process to complete
+        waitpid(pid, &status, 0);
+
+        // Check if the process exited normally
+        if (WIFEXITED(status))
+        {
+            int exit_status = WEXITSTATUS(status);
+            if (exit_status == 0)
+            {
+                INFO("Audio extraction successful");
+                return 0;
+            }
+            else
+            {
+                ERROR("FFmpeg process failed with exit code %d", exit_status);
+                return -1;
+            }
+        }
+        else
+        {
+            ERROR("FFmpeg process did not exit normally");
+            return -1;
+        }
+    }
 }
 /**
  * Clean up the video from the memory
