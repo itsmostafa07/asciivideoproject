@@ -56,6 +56,10 @@ int main(int argc, char **argv)
     char buf[1024];
     snprintf(buf, sizeof(buf), "%s/audio.wav", out);
     int audio_ext_ret = video_extract_audio(vid, buf);
+    if (audio_ext_ret != 0)
+    {
+        ERROR("Couldn't extract the audio and play it.");
+    }
     initscr();
     noecho();
     curs_set(0);
@@ -69,17 +73,13 @@ int main(int argc, char **argv)
     void *ret_audio, *ret_video;
 
     pthread_create(&th_video, NULL, video_routine, (void *)player);
+    audio_ext_ret == 0 &&
+        pthread_create(&th_audio, NULL, audio_routine, (void *)player);
+
     pthread_join(th_video, &ret_video);
 
-    if (audio_ext_ret == 0)
-    {
-        pthread_create(&th_audio, NULL, audio_routine, (void *)player);
+    audio_ext_ret == 0 &&
         pthread_join(th_audio, &ret_audio);
-    }
-    else
-    {
-        ERROR("Couldn't extract the audio and play it.");
-    }
 
     if ((int)ret_video == -1)
     {
