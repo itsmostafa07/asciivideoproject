@@ -7,7 +7,7 @@
 #include "helpers.h"
 #include "generator.h"
 
-int decode_handler(AVCodecContext *dec_ctx, AVFrame *av_frame, AVPacket *pkt, const char *filename)
+int decode_handler(AVCodecContext *dec_ctx, AVFrame *av_frame, AVPacket *pkt, const char *out_dir)
 {
     char buf[1024];
     int ret;
@@ -32,7 +32,7 @@ int decode_handler(AVCodecContext *dec_ctx, AVFrame *av_frame, AVPacket *pkt, co
 
         int frame_n = dec_ctx->frame_num;
         int w = av_frame->width, h = av_frame->height;
-        snprintf(buf, sizeof(buf), "%s%ld.ascii", filename, frame_n);
+        snprintf(buf, sizeof(buf), "%s/%ld.ascii", out_dir, frame_n);
 
         INFO("Saving frame #%ld: path={\"%s\"}, res={%ix%i}", frame_n, buf, av_frame->width, av_frame->height);
 

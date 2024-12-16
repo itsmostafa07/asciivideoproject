@@ -4,10 +4,48 @@
 #include <unistd.h>
 #include <ncurses.h>
 #include <signal.h>
+#include <sys/wait.h>
+#include <stdbool.h>
+#include <math.h>
 
 #include "player.h"
 #include "helpers.h"
 
+bool is_audio_stopped = false;
+
+static void audio_stop(pid_t audio_pid)
+{
+    if (audio_pid > 0)
+    {
+        // Send termination signal to audio process
+        int result = kill(audio_pid, SIGSTOP);
+        if (result == -1)
+        {
+            ERROR("Failed to stop audio playback: %s", strerror(errno));
+        }
+        else
+        {
+            is_audio_stopped = true;
+        }
+    }
+}
+
+static void audio_resume(pid_t audio_pid)
+{
+    if (audio_pid > 0)
+    {
+        // Send termination signal to audio process
+        int result = kill(audio_pid, SIGCONT);
+        if (result == -1)
+        {
+            ERROR("Failed to resume audio playback: %s", strerror(errno));
+        }
+        else
+        {
+            is_audio_stopped = false;
+        }
+    }
+}
 static int print_frame(char *filename, WINDOW *frame_pad, int width, int height)
 {
     FILE *file = fopen(filename, "r");
@@ -31,19 +69,22 @@ static int print_frame(char *filename, WINDOW *frame_pad, int width, int height)
     return 0;
 }
 
-video_player *video_player_new(char *src, specs *specs)
+player *player_new(const char *src, specs *specs)
 {
-    video_player *player = malloc(sizeof(video_player));
+    player *player = malloc(sizeof(player));
     player->src = src;
     player->specs = specs;
     return player;
 }
 
-int video_player_run(video_player *player)
+int player_video_run(player *player)
 
 {
+    double fps = ceil(player->specs->fps);
+    uint32_t frames_count = player->specs->frames_count;
+    uint32_t duration = player->specs->duration;
 
-    int delay = 1000000 / player->specs->fps;
+    int delay = 1000000 / (2 * fps);
 
     int width = player->specs->width * 4, height = player->specs->height;
 
@@ -64,9 +105,6 @@ int video_player_run(video_player *player)
         return -1;
     }
 
-    float fps = player->specs->fps;
-    uint32_t frames_count = player->specs->frames_count;
-
     for (int i = 1; i <= player->specs->frames_count; i++)
     {
         werase(frame_pad);
@@ -79,6 +117,7 @@ int video_player_run(video_player *player)
 
             if (offset_y >= 0 && offset_x >= 0)
             {
+                audio_resume(player->audio_pid);
                 break;
             }
             else
@@ -90,12 +129,13 @@ int video_player_run(video_player *player)
                 refresh();
 
                 usleep(10000);
+                audio_stop(player->audio_pid);
             }
         } while (1);
 
         char filename[128];
 
-        snprintf(filename, sizeof(filename), "%s%i.ascii", player->src, i);
+        snprintf(filename, sizeof(filename), "%s/%i.ascii", player->src, i);
 
         print_frame(filename, frame_pad, width, height);
         if (term_rows != prev_term_rows || term_cols != prev_term_cols)
@@ -113,4 +153,82 @@ int video_player_run(video_player *player)
 
     delwin(frame_pad);
     return 0;
+}
+
+/**
+ * Play a WAV audio file using aplay
+ * @param audio_file Path to the WAV audio file to play
+ * @return 0 on success, -1 on failure
+ */
+int player_audio_run(player *player)
+{
+    char audio_file[1024];
+    snprintf(audio_file, sizeof(audio_file), "%s/audio.wav", player->src);
+
+    // Validate input parameters
+    if (!audio_file || strlen(audio_file) == 0)
+    {
+        ERROR("Invalid audio file path");
+        return -1;
+    }
+
+    // Check if file exists
+    if (access(audio_file, F_OK) == -1)
+    {
+        ERROR("Audio file does not exist: %s", audio_file);
+        return -1;
+    }
+
+    // Fork a child process
+    player->audio_pid = fork();
+
+    if (player->audio_pid == -1)
+    {
+        // Fork failed
+        ERROR("Failed to fork process");
+        return -1;
+    }
+    else if (player->audio_pid == 0)
+    {
+        // Child process
+        // Execute aplay to play the audio file
+        // Use execl to replace the current process with aplay
+        execl("/usr/bin/aplay",
+              "aplay",    // argv[0]
+              "-q",       // quiet mode (suppress output)
+              audio_file, // audio file to play
+              NULL);
+
+        // If execl fails, exit the child process
+        ERROR("Failed to execute aplay");
+        exit(EXIT_FAILURE);
+    }
+    else
+    {
+        // Parent process
+        int status;
+        // Wait for the child process to complete
+        waitpid(player->audio_pid, &status, 0);
+
+        // Check if the process exited normally
+        if (WIFEXITED(status))
+        {
+            int exit_status = WEXITSTATUS(status);
+            if (exit_status == 0)
+            {
+                INFO("Audio playback completed");
+                return 0;
+            }
+            else
+            {
+                ERROR("Audio playback failed with exit code %d", exit_status);
+                return -1;
+            }
+        }
+        else
+        {
+            ERROR("Audio playback process did not exit normally");
+            return -1;
+        }
+    }
 }
