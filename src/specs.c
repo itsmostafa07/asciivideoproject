@@ -1,13 +1,13 @@
-#include "./specs.h"
-#include "./helpers.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <stdint.h> //to use uint32_t without any problems
+
+#include "specs.h"
+#include "helpers.h"
 
 /*The specs_new function will allocate memory
 for a new specs structure and initialize it with the provided values*/
-specs *specs_new(unsigned int frames_count, double fps, double duration, uint32_t width, uint32_t height)
+specs *specs_new(uint64_t frames_count, double fps, double duration, uint32_t width, uint32_t height, bool audio)
 {
     // dynamic memory allocation for new_specs structre
     specs *new_specs = (specs *)malloc(sizeof(specs)); // pointer to structure
@@ -24,6 +24,7 @@ specs *specs_new(unsigned int frames_count, double fps, double duration, uint32_
     new_specs->duration = duration;
     new_specs->width = width;
     new_specs->height = height;
+    new_specs->audio = audio;
     return new_specs;
     // free(new_specs);
 }

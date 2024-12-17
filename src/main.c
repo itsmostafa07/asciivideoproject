@@ -39,16 +39,6 @@ int main(int argc, char **argv)
     out = argv[2];
 
     video *vid = video_new(src, out);
-    AVRational framerate =
-        av_guess_frame_rate(vid->fmt_ctx, vid->video_stream, vid->frame);
-
-    double fps = framerate.num / framerate.den;
-    double duration = vid->fmt_ctx->duration / (double)AV_TIME_BASE;
-
-    int frames_count = fps * duration;
-    specs *specs = specs_new(frames_count, fps, duration, vid->video_stream->codecpar->width, vid->video_stream->codecpar->height);
-
-    INFO("Creating specs file, content={%s}", specs_serialize(specs));
 
     ascii_video_gen *gen = ascii_viden_gen_new(src, out, vid);
     ascii_video_gen_run(gen);
@@ -60,6 +50,16 @@ int main(int argc, char **argv)
     {
         ERROR("Couldn't extract the audio and play it.");
     }
+    AVRational framerate =
+        av_guess_frame_rate(vid->fmt_ctx, vid->video_stream, vid->frame);
+
+    double fps = framerate.num / framerate.den;
+    double duration = vid->fmt_ctx->duration / (double)AV_TIME_BASE;
+
+    int frames_count = fps * duration;
+    specs *specs = specs_new(frames_count, fps, duration, vid->video_stream->codecpar->width, vid->video_stream->codecpar->height, audio_ext_ret == 0 ? true : false);
+
+    INFO("Creating specs file, content={%s}", specs_serialize(specs));
     initscr();
     noecho();
     curs_set(0);

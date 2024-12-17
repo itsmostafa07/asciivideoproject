@@ -117,6 +117,7 @@ int player_video_run(player *player)
 
             if (offset_y >= 0 && offset_x >= 0)
             {
+                if (player->specs->audio)
                 audio_resume(player->audio_pid);
                 break;
             }
@@ -129,6 +130,7 @@ int player_video_run(player *player)
                 refresh();
 
                 usleep(10000);
+                if (player->specs->audio)
                 audio_stop(player->audio_pid);
             }
         } while (1);
