@@ -152,7 +152,7 @@ static int video_find_decoder(video *vid)
  * Decoding video frames into struct frames (frames.h)
  */
 
-int video_decode_frames(video *vid, int (*handler)(AVCodecContext *codec_ctx, AVFrame *frame, AVPacket *pkt, const char *out))
+int video_decode_frames(video *vid, int (*handler)(AVCodecContext *codec_ctx, AVFrame *frame, AVPacket *pkt, AVFormatContext *fmt_ctx, AVStream *video_stream, const char *out))
 {
 
     // Read frames from the file
@@ -160,7 +160,7 @@ int video_decode_frames(video *vid, int (*handler)(AVCodecContext *codec_ctx, AV
     {
         if (vid->pkt->stream_index == vid->video_stream_index)
         {
-            if (handler(vid->codec_ctx, vid->frame, vid->pkt, vid->out) == -1)
+            if (handler(vid->codec_ctx, vid->frame, vid->pkt, vid->fmt_ctx, vid->video_stream, vid->out) == -1)
             {
                 FATAL("Couldn't handle the frame #%i", vid->codec_ctx->frame_num);
                 goto fail;
@@ -187,7 +187,7 @@ int video_extract_audio(video *vid, const char *output_file)
         return -1;
     }
 
-        // Fork a child process
+    // Fork a child process
     pid_t pid = fork();
 
     if (pid == -1)

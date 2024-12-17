@@ -45,7 +45,6 @@ frame *frame_new(uint64_t id, uint8_t *buf, int wrap, int width, int height)
         return NULL;
     }
 
-    INFO("Copy buffer to frame#%lu: size={%u}", id, buf_size);
     memcpy(new_frame->buf, buf, buf_size);
     return new_frame;
 }

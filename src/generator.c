@@ -7,17 +7,25 @@
 #include "helpers.h"
 #include "generator.h"
 
-int decode_handler(AVCodecContext *dec_ctx, AVFrame *av_frame, AVPacket *pkt, const char *out_dir)
+int decode_handler(AVCodecContext *dec_ctx, AVFrame *av_frame, AVPacket *av_pkt, AVFormatContext *av_fmt_ctx, AVStream *av_video_stream, const char *out_dir)
 {
     char buf[1024];
     int ret;
 
-    ret = avcodec_send_packet(dec_ctx, pkt);
+    ret = avcodec_send_packet(dec_ctx, av_pkt);
     if (ret < 0)
     {
         ERROR("Error sending a packet for decoding, ret={%i}", ret);
         return -1;
     }
+
+    AVRational framerate =
+        av_guess_frame_rate(av_fmt_ctx, av_video_stream, av_frame);
+
+    double fps = framerate.num / framerate.den;
+    double duration = av_fmt_ctx->duration / (double)AV_TIME_BASE;
+
+    int frames_count = fps * duration;
 
     while (ret >= 0)
     {
@@ -34,7 +42,7 @@ int decode_handler(AVCodecContext *dec_ctx, AVFrame *av_frame, AVPacket *pkt, co
         int w = av_frame->width, h = av_frame->height;
         snprintf(buf, sizeof(buf), "%s/%ld.ascii", out_dir, frame_n);
 
-        INFO("Saving frame #%ld: path={\"%s\"}, res={%ix%i}", frame_n, buf, av_frame->width, av_frame->height);
+        INFO("(%.1f\%) Saving frame %ld/%ld: path={\"%s\"}, res={%ix%i}", frame_n / (float)frames_count * 100, frame_n, frames_count, buf, av_frame->width, av_frame->height);
 
         frame *fm = frame_new(frame_n, av_frame->data[0], av_frame->linesize[0], w, h);
 
@@ -77,6 +85,6 @@ int ascii_video_gen_run(ascii_video_gen *gen)
     video_decode_frames(gen->vid, decode_handler);
 
     // Flush the decoder
-    decode_handler(gen->vid->codec_ctx, gen->vid->frame, NULL, gen->dest);
+    decode_handler(gen->vid->codec_ctx, gen->vid->frame, NULL, gen->vid->fmt_ctx, gen->vid->video_stream, gen->dest);
     return 0;
 }
