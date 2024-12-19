@@ -30,7 +30,7 @@ uint16_t pixel_intensity(pixel px);
  * Converting the pixel to ascii character depends on its intensity (Grayscale value).
  *
  * You can find the index of the suitable ascii code using this formula:
- *  Index = strlen(ASCII_CHARS) - I/255 * strlen(ASCII_CHARS)
+ *  Index = I/255 * strlen(ASCII_CHARS)
  *
  * where I is the intensity of the pixel
  */
